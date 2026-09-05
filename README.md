@@ -5,7 +5,9 @@ This folder contains a local-only expense analysis script.
 ## Files
 
 - `expense_processor.py` — main program
-- `rules.csv` — editable classification rules
+- `rules.csv` — public, generic classification rules
+- `personal_rules.csv` — optional private rules for location-specific or personally identifying transactions; keep this file local
+- Rule files are inputs only; the processor does not generate or embed fallback rules.
 - `README.txt` — instructions
 
 ## Recommended folder layout
@@ -20,7 +22,7 @@ Put your three exports in the same folder:
 
 Open Terminal, change to this folder, and run:
 
-    python3 expense_processor.py --credit-card credit_card.csv --bank checking.csv --amazon amazon.csv
+    python3 expense_processor.py --credit-card credit_card.csv --bank checking.csv --amazon amazon.csv --rules rules.csv --rules personal_rules.csv
 
 It creates:
 

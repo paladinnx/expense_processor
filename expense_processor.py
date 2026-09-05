@@ -14,7 +14,8 @@ Outputs:
   amazon_matches.csv  - audit trail of Amazon orders matched to card charges
 
 Optional:
-  rules.csv            - merchant/keyword classification rules
+    rules.csv            - public merchant/keyword classification rules
+    personal_rules.csv   - optional private rules kept on your computer
 
 Example:
   python expense_processor.py \
@@ -22,7 +23,7 @@ Example:
       --bank checking.csv \
       --amazon amazon.csv \
       --output expenses_clean.csv \
-      --rules rules.csv
+    --rules rules.csv [--rules personal_rules.csv]
 """
 
 from __future__ import annotations
@@ -99,63 +100,14 @@ OUTPUT_FIELDS = [
     "review",
 ]
 
-DEFAULT_RULES = [
-    # priority, match_type, pattern, category, subcategory, discretionary
-    (10, "merchant", "AMAZON", "Shopping", "Amazon", "Review"),
-    (20, "merchant", "COSTCO", "Groceries", "Warehouse", "No"),
-    (20, "merchant", "TRADER JOE", "Groceries", "Groceries", "No"),
-    (20, "merchant", "SAFEWAY", "Groceries", "Groceries", "No"),
-    (20, "merchant", "VONS", "Groceries", "Groceries", "No"),
-    (20, "merchant", "WHOLE FOODS", "Groceries", "Groceries", "No"),
-    (20, "merchant", "RALPHS", "Groceries", "Groceries", "No"),
-    (20, "merchant", "WALMART", "Groceries", "Groceries", "No"),
-    (30, "merchant", "TARGET", "Shopping", "General", "Review"),
-    (30, "merchant", "HOME DEPOT", "Home", "Home improvement", "Review"),
-    (30, "merchant", "LOWE'S", "Home", "Home improvement", "Review"),
-    (30, "merchant", "LOWES", "Home", "Home improvement", "Review"),
-    (30, "merchant", "SHELL", "Transportation", "Gas", "No"),
-    (30, "merchant", "CHEVRON", "Transportation", "Gas", "No"),
-    (30, "merchant", "ARCO", "Transportation", "Gas", "No"),
-    (30, "merchant", "76", "Transportation", "Gas", "No"),
-    (30, "merchant", "STARBUCKS", "Restaurants", "Coffee", "Yes"),
-    (30, "merchant", "MCDONALD", "Restaurants", "Fast food", "Yes"),
-    (30, "merchant", "CHIPOTLE", "Restaurants", "Fast food", "Yes"),
-    (30, "merchant", "DOORDASH", "Restaurants", "Delivery", "Yes"),
-    (30, "merchant", "UBER EATS", "Restaurants", "Delivery", "Yes"),
-    (30, "merchant", "GRUBHUB", "Restaurants", "Delivery", "Yes"),
-    (30, "merchant", "NETFLIX", "Entertainment", "Streaming", "Yes"),
-    (30, "merchant", "SPOTIFY", "Entertainment", "Streaming", "Yes"),
-    (30, "merchant", "DISNEY", "Entertainment", "Streaming", "Yes"),
-    (30, "merchant", "APPLE.COM/BILL", "Entertainment", "Digital services", "Yes"),
-    (30, "merchant", "STEAMGAMES", "Entertainment", "Games", "Yes"),
-    (30, "merchant", "PLAYSTATION", "Entertainment", "Games", "Yes"),
-    (30, "merchant", "XBOX", "Entertainment", "Games", "Yes"),
-    (30, "merchant", "AIRBNB", "Travel", "Lodging", "Yes"),
-    (30, "merchant", "DELTA AIR", "Travel", "Flights", "Yes"),
-    (30, "merchant", "UNITED AIR", "Travel", "Flights", "Yes"),
-    (30, "merchant", "SOUTHWEST", "Travel", "Flights", "Yes"),
-    (30, "merchant", "AMERICAN AIR", "Travel", "Flights", "Yes"),
-    (30, "merchant", "T-MOBILE", "Utilities", "Cell phone", "No"),
-    (30, "merchant", "AT&T", "Utilities", "Cell phone", "No"),
-    (30, "merchant", "VERIZON", "Utilities", "Cell phone", "No"),
-    (30, "merchant", "SDGE", "Utilities", "Electric/gas", "No"),
-    (30, "merchant", "SAN DIEGO GAS", "Utilities", "Electric/gas", "No"),
-    (30, "merchant", "GEICO", "Insurance", "Auto", "No"),
-    (30, "merchant", "PROGRESSIVE", "Insurance", "Auto", "No"),
-    (30, "keyword", "DENTIST|DENTAL", "Health", "Dental", "No"),
-    (30, "keyword", "PHARMACY|CVS|WALGREENS", "Health", "Medical/pharmacy", "No"),
-    (30, "keyword", "SCHOOL|DAYCARE|DAY CARE", "Daughter", "School/childcare", "No"),
-    (30, "keyword", "DMV", "Transportation", "DMV", "No"),
-]
-
-
 def parse_args():
     p = argparse.ArgumentParser()
     p.add_argument("--credit-card", required=True, type=Path)
     p.add_argument("--bank", required=True, type=Path)
     p.add_argument("--amazon", required=True, type=Path)
     p.add_argument("--output", default="expenses_clean.csv", type=Path)
-    p.add_argument("--rules", default="rules.csv", type=Path)
+    p.add_argument("--rules", action="append", type=Path,
+                   help="Rules CSV file; repeat to combine public and private rules.")
     p.add_argument("--amazon-window", default=5, type=int,
                    help="Days before/after card transaction allowed for Amazon matching.")
     p.add_argument("--amazon-tolerance", default="0.02",
@@ -202,22 +154,10 @@ def load_csv(path: Path) -> list[dict]:
         return list(csv.DictReader(f))
 
 
-def ensure_rules_file(path: Path):
-    if path.exists():
-        return
-    with path.open("w", encoding="utf-8", newline="") as f:
-        w = csv.writer(f)
-        w.writerow([
-            "priority", "match_type", "pattern",
-            "category", "subcategory", "discretionary"
-        ])
-        for row in DEFAULT_RULES:
-            w.writerow(row)
-
-
-def load_rules(path: Path) -> list[dict]:
-    ensure_rules_file(path)
-    rows = load_csv(path)
+def load_rules(paths: list[Path]) -> list[dict]:
+    rows = []
+    for path in paths:
+        rows.extend(load_csv(path))
     rules = []
     for r in rows:
         rules.append({
@@ -582,7 +522,8 @@ def write_match_audit(path: Path, matches, unmatched):
 
 def main():
     args = parse_args()
-    rules = load_rules(args.rules)
+    rule_paths = args.rules or [Path("rules.csv")]
+    rules = load_rules(rule_paths)
 
     card_rows = read_credit_card(args.credit_card)
     bank_rows = read_bank(args.bank)
@@ -601,7 +542,7 @@ def main():
     print(f"Matched {len(matches):,} Amazon orders.")
     print(f"Amazon orders needing review: {len(unmatched):,}")
     print(f"Wrote Amazon audit to {audit_path}")
-    print(f"Rules file: {args.rules}")
+    print("Rules files: " + ", ".join(str(path) for path in rule_paths))
 
 
 if __name__ == "__main__":
