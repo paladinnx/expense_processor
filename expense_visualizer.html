@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Expense visualizer</title>
+  <style>
+    :root { --ink:#182321; --muted:#65736f; --paper:#f5f6f0; --panel:#fff; --line:#dfe5df; --teal:#167d72; --teal-dark:#0d5f57; --coral:#e97b5e; --yellow:#f3c969; --shadow:0 18px 45px rgba(24,35,33,.08); }
+    * { box-sizing:border-box; }
+    body { margin:0; color:var(--ink); background:radial-gradient(circle at 90% 0,#dcefe7 0,transparent 30%),var(--paper); font-family:"Avenir Next","Helvetica Neue",sans-serif; }
+    .wrap { max-width:1440px; margin:auto; padding:34px 28px 56px; }
+    header { display:flex; align-items:end; justify-content:space-between; gap:24px; margin-bottom:28px; }
+    .eyebrow { color:var(--teal); font-size:12px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; }
+    h1 { margin:7px 0 0; font-family:Georgia,serif; font-size:clamp(34px,5vw,64px); line-height:.98; letter-spacing:-1.5px; font-weight:500; }
+    .lede { color:var(--muted); max-width:500px; margin:10px 0 0; font-size:15px; }
+    button, select, input { font:inherit; }
+    .load { border:1px solid var(--teal); background:var(--teal); color:#fff; padding:11px 15px; border-radius:4px; cursor:pointer; font-weight:700; }
+    .load:hover { background:var(--teal-dark); }
+    .toolbar { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:0 0 14px; }
+    .toolbar button, .toolbar > label, .row-action, dialog button { border:1px solid var(--teal); background:#fff; color:var(--teal-dark); padding:8px 11px; border-radius:4px; cursor:pointer; font-size:12px; font-weight:700; }
+    .toolbar button:hover, .toolbar > label:hover, .row-action:hover { background:#e5f1ed; }
+    .toolbar .primary, dialog .primary { background:var(--teal); color:#fff; }
+    .toolbar .primary:hover, dialog .primary:hover { background:var(--teal-dark); }
+    .rule-count { color:var(--muted); font-size:12px; margin-left:4px; }
+    .filters { display:grid; grid-template-columns:1.5fr repeat(4,1fr); gap:12px; background:var(--ink); padding:16px; border-radius:8px; color:#fff; box-shadow:var(--shadow); }
+    .field label { display:block; color:#b9c8c2; font-size:11px; text-transform:uppercase; letter-spacing:.08em; margin:0 0 6px; }
+    input, select { width:100%; border:1px solid #cdd8d1; background:#fff; color:var(--ink); border-radius:4px; padding:10px; min-height:40px; }
+    .flow { grid-column:1/-1; display:flex; flex-wrap:wrap; gap:14px; padding-top:4px; border-top:1px solid #3c4a46; }
+    .flow label { display:flex; align-items:center; gap:7px; color:#edf3ef; font-size:13px; cursor:pointer; }
+    .flow input { width:auto; min-height:0; accent-color:var(--yellow); }
+    .stats { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin:20px 0; }
+    .stat, .panel { background:var(--panel); border:1px solid var(--line); border-radius:6px; box-shadow:var(--shadow); }
+    .stat { padding:18px 20px; }
+    .stat span { display:block; color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.08em; }
+    .stat strong { display:block; margin-top:7px; font-family:Georgia,serif; font-size:30px; font-weight:500; }
+    .grid { display:grid; grid-template-columns:1.45fr 1fr; gap:16px; }
+    .panel { padding:20px; min-width:0; }
+    .panel.wide { grid-column:1/-1; }
+    .panel-head { display:flex; justify-content:space-between; align-items:baseline; gap:10px; margin-bottom:18px; }
+    h2 { margin:0; font-size:17px; font-weight:700; }
+    .panel-note { color:var(--muted); font-size:12px; }
+    .bars { display:flex; flex-direction:column; gap:10px; }
+    .bar-row { display:grid; grid-template-columns:minmax(105px,1.1fr) 3fr auto; align-items:center; gap:10px; font-size:13px; }
+    .bar-row.clickable { width:100%; border:0; padding:0; color:inherit; text-align:left; background:transparent; cursor:pointer; }
+    .bar-row.clickable:hover .bar-label { color:var(--teal-dark); text-decoration:underline; }
+    .bar-label { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .track { height:10px; background:#edf1ec; border-radius:10px; overflow:hidden; }
+    .bar { display:block; height:100%; min-width:3px; background:var(--teal); border-radius:10px; }
+    .bar-row:nth-child(2n) .bar { background:var(--coral); }
+    .bar-row:nth-child(3n) .bar { background:#d1a73f; }
+    .amount { color:var(--muted); font-variant-numeric:tabular-nums; }
+    .trend { display:grid; grid-template-columns:repeat(auto-fit,minmax(52px,1fr)); align-items:end; gap:10px; height:210px; padding-top:12px; border-bottom:1px solid var(--line); }
+    .month { display:flex; flex-direction:column; align-items:center; justify-content:end; height:100%; gap:7px; min-width:0; }
+    .month-stack { display:flex; flex-direction:column-reverse; width:100%; max-width:54px; height:175px; justify-content:flex-start; border-radius:4px 4px 0 0; overflow:hidden; }
+    .month-segment { display:block; min-height:1px; width:100%; cursor:help; }
+    .month-segment:first-child { border-radius:4px 4px 0 0; }
+    .month-label { font-size:11px; color:var(--muted); }
+    .trend-legend { display:flex; flex-wrap:wrap; gap:8px 14px; margin-top:14px; }
+    .legend-item { display:flex; align-items:center; gap:6px; color:var(--muted); font-size:11px; }
+    .legend-swatch { width:9px; height:9px; border-radius:2px; }
+    table { width:100%; border-collapse:collapse; font-size:13px; }
+    th { color:var(--muted); font-size:11px; letter-spacing:.07em; text-transform:uppercase; text-align:left; padding:0 8px 10px; }
+    td { padding:11px 8px; border-top:1px solid var(--line); }
+    td:last-child, th:last-child { text-align:right; }
+    .row-action { padding:5px 8px; font-size:11px; white-space:nowrap; }
+    dialog { width:min(520px,calc(100% - 28px)); border:0; border-radius:8px; padding:0; color:var(--ink); box-shadow:0 24px 80px rgba(24,35,33,.25); }
+    dialog::backdrop { background:rgba(24,35,33,.46); }
+    .dialog-body { padding:24px; }
+    .dialog-body h2 { font-family:Georgia,serif; font-size:26px; font-weight:500; }
+    .dialog-copy { color:var(--muted); font-size:13px; margin:6px 0 20px; line-height:1.45; }
+    .dialog-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .dialog-grid .full { grid-column:1/-1; }
+    .dialog-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:20px; }
+    dialog { width:min(520px,calc(100% - 28px)); border:0; border-radius:8px; padding:0; color:var(--ink); box-shadow:0 24px 80px rgba(24,35,33,.25); }
+    dialog::backdrop { background:rgba(24,35,33,.46); }
+    .dialog-body { padding:24px; }
+    .dialog-body h2 { font-family:Georgia,serif; font-size:26px; font-weight:500; }
+    .dialog-copy { color:var(--muted); font-size:13px; margin:6px 0 20px; line-height:1.45; }
+    .dialog-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .dialog-grid .full { grid-column:1/-1; }
+    .dialog-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:20px; }
+    .empty { color:var(--muted); padding:20px 0; }
+    .status { color:var(--muted); font-size:12px; margin-top:14px; }
+    @media (max-width:850px) { .wrap{padding:24px 16px 40px} header{display:block} .load{margin-top:18px} .filters{grid-template-columns:1fr 1fr} .filters .field:first-child{grid-column:1/-1} .stats{grid-template-columns:1fr 1fr} .grid{grid-template-columns:1fr} .panel.wide{grid-column:auto} }
+    @media (max-width:520px) { .stats{grid-template-columns:1fr 1fr; gap:8px}.stat{padding:14px}.stat strong{font-size:24px}.bar-row{grid-template-columns:90px 1fr auto;font-size:12px} th:nth-child(3),td:nth-child(3){display:none} }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <header>
+      <div><div class="eyebrow">Personal money, made legible</div><h1>Where did it go?</h1><p class="lede">A clear view of your cleaned expenses. Start with real spending, then adjust the lens when you need the full picture.</p></div>
+      <label class="load">Load another CSV <input id="fileInput" type="file" accept=".csv,text/csv" hidden></label>
+    </header>
+    <div class="toolbar" aria-label="Rules tools">
+      <label class="toolbar button"><input id="rulesInput" type="file" accept=".csv,text/csv" hidden>Load rules.csv</label>
+      <button id="downloadRules" class="primary" type="button">Download rules.csv</button>
+      <span id="ruleCount" class="rule-count">No rules loaded</span>
+    </div>
+    <section class="filters" aria-label="Expense filters">
+      <div class="field"><label for="search">Search merchant</label><input id="search" placeholder="Try Amazon, Costco..." type="search"></div>
+      <div class="field"><label for="category">Category</label><select id="category"><option value="all">All categories</option></select></div>
+      <div class="field"><label for="source">Account</label><select id="source"><option value="all">All accounts</option></select></div>
+      <div class="field"><label for="discretionary">Intent</label><select id="discretionary"><option value="all">All intent labels</option><option value="Yes">Discretionary</option><option value="No">Needs</option><option value="Review">Needs review</option></select></div>
+      <div class="field"><label for="period">Time window</label><select id="period"><option value="all">All time</option><option value="3">Last 3 months</option><option value="6">Last 6 months</option><option value="12">Last 12 months</option></select></div>
+      <div class="flow"><label><input type="checkbox" value="Expense" checked> Expenses</label><label><input type="checkbox" value="Refund"> Refunds</label><label><input type="checkbox" value="Income"> Income</label><label><input type="checkbox" value="Transfer"> Transfers</label><label><input type="checkbox" value="Other"> Other</label></div>
+    </section>
+    <div id="status" class="status">Loading expenses_clean.csv...</div>
+    <section class="stats"><div class="stat"><span>Showing</span><strong id="total">$0</strong></div><div class="stat"><span>Transactions</span><strong id="count">0</strong></div><div class="stat"><span>Monthly average</span><strong id="average">$0</strong></div><div class="stat"><span>Largest category</span><strong id="largest">—</strong></div></section>
+    <section class="grid">
+      <article class="panel wide"><div class="panel-head"><h2>Spending over time</h2><span id="trendNote" class="panel-note"></span></div><div id="trend" class="trend"></div><div id="trendLegend" class="trend-legend"></div></article>
+      <article class="panel"><div class="panel-head"><h2 id="categoryTitle">By category</h2><span id="categoryNote" class="panel-note">click a category to focus</span></div><div id="categories" class="bars"></div></article>
+      <article class="panel"><div class="panel-head"><h2>Top merchants</h2><span class="panel-note">sorted by amount</span></div><div id="merchants" class="bars"></div></article>
+      <article class="panel wide"><div class="panel-head"><h2>Transactions</h2><label class="panel-note" for="sortBy">Sort <select id="sortBy"><option value="date-desc">Newest first</option><option value="amount-desc">Amount: high to low</option><option value="amount-asc">Amount: low to high</option></select></label><span id="tableNote" class="panel-note"></span></div><div style="overflow:auto"><table><thead><tr><th>Date</th><th>Merchant</th><th>Description / item</th><th>Category</th><th>Flow</th><th>Amount</th><th>Action</th></tr></thead><tbody id="transactions"></tbody></table></div></article>
+    </section>
+  </main>
+  <dialog id="categoryDialog">
+    <form id="categoryForm" class="dialog-body">
+      <h2>Categorize expense</h2>
+      <p id="dialogTransaction" class="dialog-copy"></p>
+      <div class="dialog-grid">
+        <div class="field"><label for="editCategory">Category</label><input id="editCategory" list="categoryOptions" required></div>
+        <div class="field"><label for="editSubcategory">Subcategory</label><input id="editSubcategory" required></div>
+        <div class="field"><label for="editDiscretionary">Intent</label><select id="editDiscretionary"><option value="Yes">Discretionary</option><option value="No">Needs</option><option value="Review">Needs review</option></select></div>
+        <div class="field"><label for="editMatchType">Future rule matches</label><select id="editMatchType"><option value="merchant">Merchant</option><option value="keyword">Description / keyword</option></select></div>
+        <div class="field full"><label for="editPattern">Rule pattern</label><input id="editPattern" required></div>
+      </div>
+      <p class="dialog-copy">This creates a priority-5 rule and applies it to matching expense and refund rows currently loaded. Download the updated rules file for future processor runs.</p>
+      <div class="dialog-actions"><button id="cancelCategory" type="button">Cancel</button><button class="primary" type="submit">Save category and rule</button></div>
+    </form>
+  </dialog>
+  <datalist id="categoryOptions"></datalist>
+  <script>
+    const state = { rows: [], filtered: [], rules: [], editingIndex: null };
+    const $ = id => document.getElementById(id);
+    const money = value => new Intl.NumberFormat('en-US', { style:'currency', currency:'USD', maximumFractionDigits:0 }).format(value);
+    const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+    const csvRows = text => {
+      const rows=[]; let row=[], cell='', quoted=false;
+      for (let i=0;i<text.length;i++) { const ch=text[i], next=text[i+1]; if (ch==='"' && quoted && next==='"'){cell+='"';i++;} else if (ch==='"'){quoted=!quoted;} else if (ch===',' && !quoted){row.push(cell);cell='';} else if ((ch==='\n' || ch==='\r') && !quoted){if(ch==='\r'&&next==='\n')i++;row.push(cell);if(row.some(v=>v.trim()))rows.push(row);row=[];cell='';} else cell+=ch; }
+      if(cell || row.length){row.push(cell);rows.push(row);} const headers=rows.shift().map(v=>v.trim().replace(/^\uFEFF/,'')); return rows.map(values=>Object.fromEntries(headers.map((h,i)=>[h,(values[i]||'').trim()])));
+    };
+    const ruleRows = text => csvRows(text).map(row => ({ priority:Number(row.priority)||100, match_type:(row.match_type||'merchant').toLowerCase(), pattern:(row.pattern||'').trim().toUpperCase(), category:row.category||'Uncategorized', subcategory:row.subcategory||'Needs review', discretionary:row.discretionary||'Review' })).filter(rule => rule.pattern);
+    const csvCell = value => `"${String(value ?? '').replace(/"/g,'""')}"`;
+    function rulesCsv() { const fields=['priority','match_type','pattern','category','subcategory','discretionary']; return [fields.join(','),...state.rules.map(rule=>fields.map(field=>csvCell(rule[field])).join(','))].join('\r\n')+'\r\n'; }
+    function populateFilters() { for (const [id,key] of [['category','category'],['source','source']]) { const select=$(id); select.innerHTML=`<option value="all">${id==='category'?'All categories':'All accounts'}</option>`; [...new Set(state.rows.map(r=>r[key]).filter(Boolean))].sort().forEach(value=>select.insertAdjacentHTML('beforeend',`<option value="${esc(value)}">${esc(value.replaceAll('_',' '))}</option>`)); } updateCategoryOptions(); }
+    function updateCategoryOptions() { const categories=[...new Set([...state.rows.map(row=>row.category),...state.rules.map(rule=>rule.category)].filter(Boolean))].sort(); $('categoryOptions').innerHTML=categories.map(category=>`<option value="${esc(category)}">`).join(''); }
+    function selectedFlows() { return [...document.querySelectorAll('.flow input:checked')].map(input=>input.value); }
+    function filteredRows() {
+      const search=$('search').value.toLowerCase(); const period=+$('period').value; const maxDate=new Date(Math.max(...state.rows.map(r=>Date.parse(r.transaction_date)))); const cutoff=period ? new Date(maxDate.getFullYear(),maxDate.getMonth()-period+1,1) : null;
+      return state.rows.map((row,index)=>({...row,_index:index})).filter(r => selectedFlows().includes(r.flow_type) && (!$('category').value || $('category').value==='all' || r.category===$('category').value) && ($('source').value==='all' || r.source===$('source').value) && ($('discretionary').value==='all' || r.discretionary===$('discretionary').value) && (!search || `${r.merchant} ${r.description}`.toLowerCase().includes(search)) && (!cutoff || new Date(r.transaction_date)>=cutoff));
+    }
+    function sums(rows,key) { return rows.reduce((out,r)=>{ const name=r[key]||'Unknown'; out[name]=(out[name]||0)+Number(r.amount||0); return out; },{}); }
+    function renderBars(id,data,filterKey='') { const el=$(id), entries=Object.entries(data).sort((a,b)=>b[1]-a[1]).slice(0,8), max=Math.max(...entries.map(x=>Math.abs(x[1])),1); const tag=filterKey ? 'button' : 'div'; el.innerHTML=entries.length ? entries.map(([name,value])=>`<${tag} class="bar-row${filterKey?' clickable':''}"${filterKey ? ` type="button" data-filter-key="${filterKey}" data-filter-value="${esc(name)}"` : ''}><span class="bar-label" title="${esc(name)}">${esc(name)}</span><span class="track"><span class="bar" style="width:${Math.max(2,Math.abs(value)/max*100)}%"></span></span><span class="amount">${money(value)}</span></${tag}>`).join('') : '<div class="empty">Nothing matches these filters.</div>'; }
+    const trendColors=['#167d72','#e97b5e','#d1a73f','#4778a8','#8d659e','#4d9a75','#c35d76','#7b8790','#b36b35','#4f989d'];
+    function categoryColor(category) { let hash=0; for(const char of category)hash=(hash*31+char.charCodeAt(0))%trendColors.length; return trendColors[hash]; }
+    function renderTrend(rows) { const monthly={}; rows.forEach(row=>{const month=row.month, category=row.category||'Uncategorized'; monthly[month]??={}; monthly[month][category]=(monthly[month][category]||0)+Number(row.amount||0);}); const months=Object.keys(monthly).sort(); const totals=months.map(month=>Object.values(monthly[month]).reduce((sum,value)=>sum+value,0)); const max=Math.max(...totals,1); const categories=[...new Set(rows.map(row=>row.category||'Uncategorized'))].sort(); $('trend').innerHTML=months.length ? months.map((month,index)=>{const segments=Object.entries(monthly[month]).sort((a,b)=>a[0].localeCompare(b[0])).map(([category,value])=>`<span class="month-segment" style="height:${Math.max(1,value/max*175)}px;background:${categoryColor(category)}" title="${esc(month)} · ${esc(category)}: ${money(value)}"></span>`).join(''); return `<div class="month" aria-label="${esc(month)}: ${money(totals[index])}"><div class="month-stack">${segments}</div><span class="month-label">${esc(month.slice(0,7))}</span></div>`; }).join('') : '<div class="empty">Nothing matches these filters.</div>'; $('trendLegend').innerHTML=categories.map(category=>`<span class="legend-item"><span class="legend-swatch" style="background:${categoryColor(category)}"></span>${esc(category)}</span>`).join(''); $('trendNote').textContent=months.length ? `${months.length} months · expenses by category` : ''; }
+    function renderTable(rows) { const sort=$('sortBy').value; const sorted=[...rows].sort((a,b)=>sort==='amount-desc' ? Number(b.amount)-Number(a.amount) : sort==='amount-asc' ? Number(a.amount)-Number(b.amount) : b.transaction_date.localeCompare(a.transaction_date)); $('transactions').innerHTML=sorted.slice(0,80).map(r=>`<tr><td>${esc(r.transaction_date)}</td><td>${esc(r.merchant||'Unknown')}</td><td title="${esc(r.description||r.amazon_product||'')}">${esc(r.description||r.amazon_product||'')}</td><td>${esc(r.category||'Uncategorized')}/${esc(r.subcategory||'Needs review')}</td><td>${esc(r.flow_type)}</td><td>${money(Number(r.amount))}</td><td><button class="row-action" type="button" data-edit-index="${r._index}">Categorize</button></td></tr>`).join('') || '<tr><td colspan="7" class="empty">Nothing matches these filters.</td></tr>'; $('tableNote').textContent=rows.length>80 ? `Showing 80 of ${rows.length}` : `${rows.length} matching`; }
+    function render() { state.filtered=filteredRows(); const rows=state.filtered.map(r=>({...r,month:r.transaction_date.slice(0,7)})); const expenses=rows.filter(r=>r.flow_type==='Expense'); const total=rows.reduce((sum,r)=>sum+Number(r.amount||0),0); const category= $('category').value !== 'all' ? sums(expenses,'subcategory') : sums(expenses,'category'); const largest=Object.entries(category).sort((a,b)=>b[1]-a[1])[0]; $('total').textContent=money(total); $('count').textContent=rows.length.toLocaleString(); $('average').textContent=money(total/Math.max(1,new Set(rows.map(r=>r.month)).size)); $('largest').textContent=largest ? largest[0] : '—'; $('ruleCount').textContent=state.rules.length ? `${state.rules.length} rules loaded` : 'No rules loaded'; $('categoryTitle').textContent=$('category').value !== 'all' ? `${$('category').value} by subcategory` : 'By category'; $('categoryNote').textContent=$('category').value !== 'all' ? 'choose another category above to change focus' : 'click a category to focus'; renderTrend(expenses); renderBars('categories',category,$('category').value !== 'all' ? '' : 'category'); renderBars('merchants',sums(expenses,'merchant')); renderTable(rows); }
+    function load(text,name) { state.rows=csvRows(text).filter(r=>r.transaction_date); populateFilters(); $('status').textContent=`${state.rows.length.toLocaleString()} rows loaded from ${name}`; render(); }
+    function loadRules(text,name) { state.rules=ruleRows(text); updateCategoryOptions(); $('status').textContent=`${state.rules.length.toLocaleString()} rules loaded from ${name}`; render(); }
+    function ruleMatches(row, rule) { const text=rule.match_type==='merchant' ? row.merchant : `${row.merchant} ${row.description} ${row.amazon_product}`; return text.toUpperCase().includes(rule.pattern); }
+    function applyRule(rule) { state.rows.forEach(row=>{ if(['Expense','Refund'].includes(row.flow_type) && ruleMatches(row,rule)){ row.category=rule.category; row.subcategory=rule.subcategory; row.discretionary=rule.discretionary; } }); }
+    function openCategorizer(index) { const row=state.rows[index]; if(!row)return; state.editingIndex=index; $('dialogTransaction').textContent=`Merchant: ${row.merchant||'Unknown'} | Item: ${row.description||row.amazon_product||'No description'} | ${money(Number(row.amount))} | ${row.transaction_date}`; $('editCategory').value=row.category||''; $('editSubcategory').value=row.subcategory||''; $('editDiscretionary').value=row.discretionary||'Review'; $('editMatchType').value='merchant'; $('editPattern').value=row.merchant||row.description||''; $('categoryDialog').showModal(); }
+    function saveCategorization(event) { event.preventDefault(); const row=state.rows[state.editingIndex]; const category=$('editCategory').value.trim(); const subcategory=$('editSubcategory').value.trim(); const discretionary=$('editDiscretionary').value; const match_type=$('editMatchType').value; const pattern=$('editPattern').value.trim().toUpperCase(); if(!row || !category || !subcategory || !pattern)return; const rule={priority:5,match_type,pattern,category,subcategory,discretionary}; const existing=state.rules.findIndex(item=>item.priority===rule.priority && item.match_type===rule.match_type && item.pattern===rule.pattern); if(existing>=0)state.rules[existing]=rule; else state.rules.push(rule); applyRule(rule); updateCategoryOptions(); $('categoryDialog').close(); $('status').textContent=`Rule saved: ${pattern} now matches ${state.rows.filter(item=>['Expense','Refund'].includes(item.flow_type) && ruleMatches(item,rule)).length} loaded transactions. Download rules.csv to keep it.`; render(); }
+    function downloadRules() { const blob=new Blob([rulesCsv()],{type:'text/csv;charset=utf-8'}); const link=document.createElement('a'); link.href=URL.createObjectURL(blob); link.download='rules.csv'; link.click(); URL.revokeObjectURL(link.href); $('status').textContent='Downloaded rules.csv. Replace the project copy before the next processor run.'; }
+    document.querySelectorAll('select,input[type=search],.flow input').forEach(el=>el.addEventListener('input',render));
+    $('fileInput').addEventListener('change',event=>{const file=event.target.files[0];if(file){const reader=new FileReader();reader.onload=()=>load(reader.result,file.name);reader.readAsText(file);}});
+    $('rulesInput').addEventListener('change',event=>{const file=event.target.files[0];if(file){const reader=new FileReader();reader.onload=()=>loadRules(reader.result,file.name);reader.readAsText(file);}});
+    $('downloadRules').addEventListener('click',downloadRules); $('cancelCategory').addEventListener('click',()=>$('categoryDialog').close()); $('categoryForm').addEventListener('submit',saveCategorization); $('transactions').addEventListener('click',event=>{const button=event.target.closest('[data-edit-index]');if(button)openCategorizer(Number(button.dataset.editIndex));}); $('categories').addEventListener('click',event=>{const button=event.target.closest('[data-filter-key="category"]');if(button){$('category').value=button.dataset.filterValue;render();}});
+    Promise.all([fetch('expenses_clean.csv').then(response=>{if(!response.ok)throw Error();return response.text();}),fetch('rules.csv').then(response=>{if(!response.ok)throw Error();return response.text();})]).then(([expenses,rules])=>{loadRules(rules,'rules.csv');load(expenses,'expenses_clean.csv');}).catch(()=>{fetch('expenses_clean.csv').then(response=>response.text()).then(text=>load(text,'expenses_clean.csv')).catch(()=>$('status').textContent='Choose expenses_clean.csv to begin.');});
+    document.querySelectorAll('select,input[type=search],.flow input').forEach(el=>el.addEventListener('input',render)); $('fileInput').addEventListener('change',event=>{const file=event.target.files[0];if(file){const reader=new FileReader();reader.onload=()=>load(reader.result,file.name);reader.readAsText(file);}});
+  </script>
+</body>
+</html>

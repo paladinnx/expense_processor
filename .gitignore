@@ -1,0 +1,13 @@
+# Personal financial exports
+amazon.csv
+checking.csv
+credit_card.csv
+
+# Generated expense data
+amazon_matches.csv
+expenses_clean.csv
+
+# Local Python and macOS files
+__pycache__/
+*.py[cod]
+.DS_Store
