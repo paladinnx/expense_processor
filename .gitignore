@@ -2,6 +2,7 @@
 amazon.csv
 checking.csv
 credit_card.csv
+rules.csv
 
 # Generated expense data
 amazon_matches.csv
